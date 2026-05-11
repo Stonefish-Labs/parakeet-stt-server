@@ -1,0 +1,53 @@
+name: parakeet-openai-stt
+
+services:
+  parakeet-stt:
+    build:
+      context: .
+      dockerfile: docker/parakeet-openai-stt/Dockerfile
+    image: parakeet-openai-stt:local
+    container_name: parakeet-openai-stt
+    restart: unless-stopped
+    shm_size: "4gb"
+    ports:
+      - "${PARAKEET_STT_BIND_ADDR:-127.0.0.1}:${PARAKEET_STT_HOST_PORT:-5092}:5092"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "5092"
+      CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+      NVIDIA_VISIBLE_DEVICES: "${NVIDIA_VISIBLE_DEVICES:-all}"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      HF_HOME: "/cache/huggingface"
+      NEMO_HOME: "/cache/nemo"
+      XDG_CACHE_HOME: "/cache"
+      PARAKEET_STT_MODEL: "${PARAKEET_STT_MODEL:-nvidia/parakeet-tdt-0.6b-v3}"
+      PARAKEET_STT_DEVICE: "${PARAKEET_STT_DEVICE:-auto}"
+      PARAKEET_STT_MAX_CONCURRENT: "${PARAKEET_STT_MAX_CONCURRENT:-1}"
+      PARAKEET_STT_WARMUP_ON_LOAD: "${PARAKEET_STT_WARMUP_ON_LOAD:-true}"
+      PARAKEET_STT_MAX_FILE_MB: "${PARAKEET_STT_MAX_FILE_MB:-100}"
+      PARAKEET_STT_TEMP_DIR: "/tmp/parakeet-stt"
+      PARAKEET_STT_API_KEY: "${PARAKEET_STT_API_KEY:-}"
+    volumes:
+      - type: volume
+        source: parakeet-hf-cache
+        target: /cache/huggingface
+      - type: volume
+        source: parakeet-nemo-cache
+        target: /cache/nemo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5092/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  parakeet-hf-cache:
+  parakeet-nemo-cache:
